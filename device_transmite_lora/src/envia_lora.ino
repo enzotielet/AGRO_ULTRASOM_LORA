@@ -24,13 +24,14 @@
 // ===================== TEMPOS DE ENVIO =====================
 // Os primeiros ENVIOS_INICIAIS envios usam INTERVALO_INICIAL_S.
 // Depois disso, todos os envios usam INTERVALO_NORMAL_S.
-const uint32_t ENVIOS_INICIAIS     = 1000;        // quantos envios no ritmo inicial
+const uint32_t ENVIOS_INICIAIS     = 5;        // quantos envios no ritmo inicial
 const uint32_t INTERVALO_INICIAL_S = 10;       // segundos entre os primeiros envios
-const uint32_t INTERVALO_NORMAL_S  = 60 * 2;   // segundos entre os demais envios
+const uint32_t INTERVALO_NORMAL_S  = 30;   // segundos entre os demais envios
 
 // Se true: quando a leitura falha, reenvia a última distância válida
 static bool SEND_OLD_WHEN_NO_NEW_READING = true;
-const bool teste = true;
+
+#define TESTE 
 // ===================== SENSOR ULTRASSÔNICO =====================
 const int PIN_TRIG = 13;
 const int PIN_ECHO = 25;
@@ -38,22 +39,24 @@ float ultimaMedidaM = 0;
 
 const unsigned int  TRIG_US      = 20;       // largura do pulso de disparo (µs)
 const unsigned long TIMEOUT_US   = 60000UL;  // espera máxima pelo Echo (µs)
-const unsigned long INTERVALO_MS = 30;       // pausa entre amostras (ms)
+const unsigned long INTERVALO_MS = 70;       // pausa entre amostras (ms)
 const unsigned long ECHO_MIN_US  = 1300;     // abaixo disso = zona cega (~22 cm)
-const unsigned long ECHO_MAX_US  = 40000;    // acima disso = sem eco (~6,9 m)
-const int           AMOSTRAS     = 20;        // leituras por resultado (mediana)
+const unsigned long ECHO_MAX_US  = 30000;    // acima disso = sem eco (~6,9 m)
+const int           AMOSTRAS     = 12;        // leituras por resultado (mediana)
+const int           MAX_REJEICOES = 2;
+int           rejeicoesConsecutivas = 0;   // contador de leituras rejeitadas seguidas
 const float velocidadeSom = 346.45;          // m/s (~25 °C)
 
 // ===================== ABP KEYS =====================
-#if !teste
-static const PROGMEM u1_t NWKSKEY[16] = { 0x9B, 0xBE, 0x25, 0xA7, 0x76, 0xA4, 0x01, 0x63, 0x2B, 0x16, 0x4D, 0xDB, 0xF1, 0xDE, 0x0A, 0x33 };
-static const PROGMEM u1_t APPSKEY[16] = { 0x27, 0xF5, 0x4E, 0x19, 0xF8, 0x8A, 0xEF, 0x32, 0x08, 0xEA, 0xC8, 0x36, 0x0E, 0xF7, 0xB0, 0x51 };
-static const u4_t DEVADDR = 0x260C367F;
-#else
+#ifdef TESTE
 //key de teste
 static const PROGMEM u1_t NWKSKEY[16] = { 0xD9, 0x55, 0x70, 0xA1, 0x31, 0xD0, 0x38, 0xEC, 0x4D, 0x36, 0x0D, 0x30, 0x89, 0x12, 0xC9, 0x34};
 static const PROGMEM u1_t APPSKEY[16] = { 0xE6, 0x0B, 0x65, 0xF1, 0x34, 0x75, 0xD4, 0xFB, 0x97, 0x34, 0x06, 0x96, 0xFD, 0x40, 0xCF, 0x2C};
 static const u4_t DEVADDR = 0x260C8564;
+#else
+static const PROGMEM u1_t NWKSKEY[16] = { 0x9B, 0xBE, 0x25, 0xA7, 0x76, 0xA4, 0x01, 0x63, 0x2B, 0x16, 0x4D, 0xDB, 0xF1, 0xDE, 0x0A, 0x33 };
+static const PROGMEM u1_t APPSKEY[16] = { 0x27, 0xF5, 0x4E, 0x19, 0xF8, 0x8A, 0xEF, 0x32, 0x08, 0xEA, 0xC8, 0x36, 0x0E, 0xF7, 0xB0, 0x51 };
+static const u4_t DEVADDR = 0x260C367F;
 #endif
 
 // Callbacks OTAA vazios (ABP)
@@ -150,17 +153,21 @@ bool distanciasend()
   float distanciaM = t * velocidadeSom / 2000000.0f;   // µs -> metros
 
   lpp.reset();
-  if(ultimaMedidaM != 0) {
-    if(fabsl(distanciaM - ultimaMedidaM) > 0.30) {
-      distanciaM = ultimaMedidaM;  // descarta leitura fora da faixa de tolerância
+ if (ultimaMedidaM != 0 && fabsf(distanciaM - ultimaMedidaM) > 0.30f) {
+    rejeicoesConsecutivas++;
+    if (rejeicoesConsecutivas < MAX_REJEICOES) {
+        Serial.printf("Outlier: %.2f descartado\n", distanciaM);
+        return false;  // trata como "sem leitura nova"
     }
-  }
+    // depois de N rejeicoes, aceita
+    rejeicoesConsecutivas = 0;
+}
 
   lpp.addAnalogInput(1, distanciaM);
   ultimaMedidaM = distanciaM;
-  if (teste) {
-    lpp.addAnalogInput(2, 1);
-  }
+  #ifdef TESTE
+    lpp.addAnalogInput(2, 2); //1 teste note book 2 teste fonte de celular 3 teste fonte diferente
+  #endif
 
   tamanhoPayload = lpp.getSize();
   if (tamanhoPayload > sizeof(payloadRecebido)) {
