@@ -39,7 +39,7 @@ float ultimaMedidaM = 0;
 
 const unsigned int  TRIG_US      = 20;       // largura do pulso de disparo (µs)
 const unsigned long TIMEOUT_US   = 60000UL;  // espera máxima pelo Echo (µs)
-const unsigned long INTERVALO_MS = 70;       // pausa entre amostras (ms)
+const unsigned long INTERVALO_MS = 150;       // pausa entre amostras (ms)
 const unsigned long ECHO_MIN_US  = 1300;     // abaixo disso = zona cega (~22 cm)
 const unsigned long ECHO_MAX_US  = 30000;    // acima disso = sem eco (~6,9 m)
 const int           AMOSTRAS     = 12;        // leituras por resultado (mediana)
@@ -149,7 +149,9 @@ bool distanciasend()
   }
 
   ordenar(validas, n);
-  long  t          = validas[n / 2];                   // mediana
+  int inicio = n / 4;
+  int fim    = n - n / 4;
+  long t = validas[(inicio + fim) / 2];                // mediana
   float distanciaM = t * velocidadeSom / 2000000.0f;   // µs -> metros
 
   lpp.reset();
