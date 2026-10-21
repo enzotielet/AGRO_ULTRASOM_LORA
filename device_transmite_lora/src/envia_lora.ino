@@ -20,7 +20,7 @@
 #include <hal/hal.h>
 #include <SPI.h>
 #include <CayenneLPP.h>
-
+//
 // ===================== TEMPOS DE ENVIO =====================
 // Os primeiros ENVIOS_INICIAIS envios usam INTERVALO_INICIAL_S.
 // Depois disso, todos os envios usam INTERVALO_NORMAL_S.
